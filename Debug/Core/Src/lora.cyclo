@@ -1,0 +1,17 @@
+../Core/Src/lora.c:39:6:SX1272_init	1
+../Core/Src/lora.c:104:6:_LoRa_setMode	1
+../Core/Src/lora.c:132:13:LoRa_AVData	1
+../Core/Src/lora.c:172:13:LoRa_GPSData	1
+../Core/Src/lora.c:190:13:LoRa_PayloadData	1
+../Core/Src/lora.c:210:13:Dummy_Transmit	2
+../Core/Src/lora.c:224:13:Dummy_Transmit_2	2
+../Core/Src/lora.c:240:13:LoRa_Command	1
+../Core/Src/lora.c:259:6:_SX1272_setMode	1
+../Core/Src/lora.c:279:6:SX1272_enableBoost	1
+../Core/Src/lora.c:294:6:SX1272_standby	1
+../Core/Src/lora.c:306:6:SX1272_transmit	2
+../Core/Src/lora.c:346:6:SX1272_startReceive	1
+../Core/Src/lora.c:386:6:SX1272_readReceive	3
+../Core/Src/lora.c:426:6:SX1272_clearIRQ	1
+../Core/Src/lora.c:432:6:SX1272_writeRegister	1
+../Core/Src/lora.c:448:9:SX1272_readRegister	1
