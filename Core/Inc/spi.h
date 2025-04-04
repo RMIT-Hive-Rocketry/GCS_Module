@@ -13,10 +13,11 @@
  * @brief Device type enum
  * Describes the type of peripheral implementing an SPI interface.
  */
-typedef enum {
+typedef enum
+{
   MEMORY_FLASH, //!< Flash memory.
-  COMM_LORA,     //!< LoRa module
-} DeviceType;
+  COMM_LORA    //!< LoRa module
+}DeviceType;
 
 /**
  * @brief Data format enum
@@ -25,7 +26,7 @@ typedef enum {
 typedef enum {
   MODE8,
   MODE16
-} DataFormat;
+}DataFormat;
 
 /**
  * @brief Struct definition for \ref SPI "SPI interface".

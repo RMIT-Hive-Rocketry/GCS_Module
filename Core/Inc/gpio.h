@@ -45,6 +45,8 @@ typedef struct{
 //@param Pos is defined via #include "stm32f4xx_hal.h"
 
 void GPIO_init(GPIO *, GPIO_TypeDef *, uint8_t MODER, uint8_t OTYPER, uint8_t OSPEEDR, uint8_t PUPDR, uint8_t POS);
+void GPIO_init_group(GPIO *, GPIO_TypeDef *, uint8_t MODER, uint8_t OTYPER, uint8_t OSPEEDR, uint8_t PUPDR);
+
 uint8_t GPIO_read(GPIO *);
 void GPIO_write(GPIO *);
 
