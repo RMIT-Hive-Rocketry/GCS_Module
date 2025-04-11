@@ -31,6 +31,11 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "DMA.h"
+#include "lora.h"
+#include "rcc.h"
+
+
 
 /* USER CODE END Includes */
 

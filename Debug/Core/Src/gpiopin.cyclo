@@ -1,0 +1,6 @@
+../Core/Src/gpiopin.c:26:11:GPIOpin_init	2
+../Core/Src/gpiopin.c:62:13:_GPIOpin_init	2
+../Core/Src/gpiopin.c:96:6:GPIOpin_set	1
+../Core/Src/gpiopin.c:110:6:GPIOpin_reset	1
+../Core/Src/gpiopin.c:124:6:GPIOpin_toggle	1
+../Core/Src/gpiopin.c:140:6:GPIOpin_updateConfig	2

@@ -1,0 +1,2 @@
+../Core/Src/packet.c:11:16:GCS_TO_GSE_CMD	1
+../Core/Src/packet.c:27:16:GCS_TO_AV_CMD	1

@@ -1,0 +1,5 @@
+../Core/Src/DMA.c:17:5:DMA_init	88	static
+../Core/Src/DMA.c:33:6:DMA_enable	16	static
+../Core/Src/DMA.c:38:6:DMA_disable	16	static
+../Core/Src/DMA.c:46:13:_DMA_init	24	static,ignoring_inline_asm
+../Core/Src/DMA.c:99:1:DMA_updateconfig	48	static

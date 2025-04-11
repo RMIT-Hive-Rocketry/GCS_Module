@@ -1,128 +1,323 @@
 /*
  * ISA.c
  *
- *  Created on: Apr 4, 2025
+ *  Created on: Apr 9, 2025
  *      Author: lucas
  */
 
 
-#include "stm32f4xx.h"
-#include <stdio.h>
 #include "ISA.h"
-#include "spi.h"
-#include "gpio.h"
+#include "stddef.h"
+
+bool config_error_flag = false;
+
+GPIO_Config sbhe_config = {
+		GPIO_INPUT_MODE,
+		GPIO_TYPE_PUSHPULL,
+		GPIO_VERYHIGH_SPEED,
+		GPIO_PUPD_NONE, //recheck timing diagram for ISA
+		GPIO_AF0 //no alternative function
+};
+
+GPIO_Config BALE_config = {
+		GPIO_INPUT_MODE,
+		GPIO_TYPE_PUSHPULL,
+		GPIO_VERYHIGH_SPEED,
+		GPIO_PUPD_NONE, //recheck timing diagram for ISA
+		GPIO_AF0 //no alternative function
+};
+
+GPIO_Config SYS_CLK_config = {
+		GPIO_OUTPUT_MODE,
+		GPIO_TYPE_PUSHPULL,
+		GPIO_VERYHIGH_SPEED,
+		GPIO_PUPD_NONE,
+		GPIO_AF1 //timer 1
+};
 
 
-//get stuff for DMA transfer for MEMR and
+static void _ISA_BUS_init(GPIO_TypeDef *data_port,
+		  	  	  	  	  GPIO_TypeDef *address_port,
+						  GPIO_TypeDef *latch_address_port,
+						  GPIO_TypeDef *control_port,
+						  GPIO_TypeDef *SBHE_port,
+						  GPIO_TypeDef *interrupt_port,
+						  GPIO_TypeDef *dma_port,
+						  //checks need to be done to ensure each GPIO type is separate from each other!
+						  bool master, //will automatically be set to slave via hard-coding! this MUST not be set
+						  TIM_TypeDef *system_clock_timer,
+						  TIM_TypeDef *oscillator_clock_timer,
+						  ISA_Config *config); //-> this is a flawed initialisation and is not FULLY modular!
 
-void ISA_init(ISA *isa,
-				GPIO *gpio_data ,
-				GPIO *gpio_addr ,
-				GPIO *gpio_control,
-				GPIO_TypeDef *data_port,
-				GPIO_TypeDef *addr_port,
-				GPIO_TypeDef *control_port,
-				ISA_Control_TypeDef control,
-				uint8_t error)
+
+
+
+//even though this ISA bus is fixed on the module, it is still worth making initialisation modular!
+ISA_t ISA_BUS_init(GPIO_TypeDef *data_port,
+				  GPIO_TypeDef *address_port,
+				  GPIO_TypeDef *latch_address_port,
+				  GPIO_TypeDef *control_port,
+				  GPIO_TypeDef *SBHE_port,
+				  GPIO_TypeDef *interrupt_port,
+				  GPIO_TypeDef *dma_port,
+				  //checks need to be done to ensure each GPIO type is separate from each other!
+				  bool master, //will automatically be set to slave via hard-coding! this MUST not be set
+				  TIM_TypeDef *system_clock_timer,
+				  TIM_TypeDef *oscillator_clock_timer,
+				  ISA_Config *config)
 {
-	isa->data_port = data_port; //we are pointing the address to the struct
-	isa->address_port = addr_port;
-	isa->control_state = control; //must be 0.
-	isa->error_flag_ISA = error;
+	ISA_t isa;
 
-//mass initialisation of GPIOD
- GPIO_init_group(&gpio_data,
-		 	 	 &data_port,
-		 	 	 GPIO_MODER_GENERAL_PURPOSE_OUTPUT,
-				 GPIO_OTYPER_PUSH,
-				 GPIO_OSPEEDR_VERY_HIGH,
-				 GPIO_PUPDRy_NO);
+//make sure this is in the privately called function!**********************************
+		uint32_t port_ISA[] = {data_port, address_port, latch_address_port, control_port, SBHE_port, interrupt_port, dma_port};
+		uint32_t timer_ISA[] = {system_clock_timer, oscillator_clock_timer};
+		isa.configuration_error = 0;
 
- //mass initialisation of GPIOE ->Address pins for 0x0000 to 0xFFFF
- GPIO_init_group(&gpio_addr,
-		 	 	 &addr_port,
-		 	 	 GPIO_MODER_GENERAL_PURPOSE_OUTPUT,
-				 GPIO_OTYPER_PUSH,
-				 GPIO_OSPEEDR_VERY_HIGH,
-				 GPIO_PUPDRy_NO);
-//**************Essential Control Flow Signals**********************************
- //BALE initialisation
- GPIO_init(gpio_control,
-		 control_port,
-		 GPIO_MODER_GENERAL_PURPOSE_OUTPUT,
-		 GPIO_OTYPER_PUSH,
-		 GPIO_OSPEEDR_VERY_HIGH,
-		 GPIO_PUPDRy_NO,
-		 0); //PG0
+		isa.Data_port = data_port;
+		isa.Address_port = address_port;
+		isa.Address_latch_port = latch_address_port;
+		isa.Control_port = control_port;
+		isa.SBHE_port = SBHE_port;
+		isa.Interrupt_port = interrupt_port;
+		isa.DMA_Port = dma_port;
+		isa.Master = master;
+		isa.System_clock_master = system_clock_timer;
+		isa.Oscillator_clock_master = oscillator_clock_timer;
+
+		if((data_port = (void *)NULL))
+		{
+			isa.configuration_error |= 0x01; //indicating NULL on data
+		}
+
+		else if((address_port = (void *)NULL))
+		{
+			isa.configuration_error |= (0x01 << 1); //indicating NULL on address
+			config_error_flag = true;
+		}
+
+		else if((latch_address_port = (void *)NULL))
+		{
+			isa.configuration_error |= (0x01 << 2); //indicating NULL on latch address
+			config_error_flag = true;
+		}
+
+		else if((control_port = (void *)NULL))
+		{
+			isa.configuration_error |= (0x01 << 3); //indicating NULL on address
+			config_error_flag = true;
+		}
+
+		else if((SBHE_port = (void *)NULL))
+		{
+			isa.configuration_error |= (0x01 << 4); //indicating NULL on latch address
+			config_error_flag = true;
+		}
+
+		else if((interrupt_port = (void *)NULL))
+		{
+			isa.configuration_error |= (0x01 << 5); //indicating NULL on address
+			config_error_flag = true;
+		}
+
+		else if((dma_port = (void *)NULL))
+		{
+			isa.configuration_error |= (0x01 << 6); //indicating NULL on latch address
+			config_error_flag = true;
+		}
+
+		else if((system_clock_timer = (void *)NULL))
+		{
+			isa.configuration_error |= (0x01 << 7); //indicating NULL on latch address
+			config_error_flag = true;
+		}
+
+		else if((oscillator_clock_timer = (void *)NULL))
+		{
+			isa.configuration_error |= (0x01 << 8); //indicating NULL on latch address
+			config_error_flag = true;
+		}
+
+		else if((system_clock_timer == oscillator_clock_timer))
+		{
+			isa.configuration_error |= 0x4FFFF; //bit 18
+			config_error_flag = true;
 
 
+		}
+		else //if there are no NULL pointers
+		{
+			isa.configuration_error &= ~0x2FF; //bits 8-0
 
+		}
 
- //*****************************************************************************
- /*Initialisaton order of below for loop for control states
-  * PG2 - IOR
-  * PG3 - IOW
-  * PG4 - SMEMR
-  * PG5 - SMEMW
-  * PG6 - MEMW
-  * PG7 - MEMR
-  */
- for(uint8_t i = 2; i<8; i++)
- {
-	 GPIO_init(&gpio_control,
-		 &control_port,
-		 GPIO_MODER_GENERAL_PURPOSE_OUTPUT,
-		 GPIO_OTYPER_PUSH,
-		 GPIO_OSPEEDR_VERY_HIGH,
-		 GPIO_PUPDRy_NO,
-		 i); //PG2
- }
+		for(uint8_t i = 0; i<=8 ; i++)
+		{
+			for(uint8_t j = 0; j<=8 ; j++)
+			{
+				if(port_ISA[i] == port_ISA[j] && i != j) //if the port address are the same while the indexes are different
+				{
+					isa.configuration_error |=  ((0x01<<(9+i)) | (0x01<<(9+j)));
+					//will bit flip which two port addresses are identical to each other
+					//maybe an error LED can be asserted
+					break;
+				}
 
-
-	//The ISA bus will be initialised here!
+			}
+		}
+		if(config_error_flag) //if error is NOT 0;
+		{
+			return isa; //incomplete configuration here!
+		}
+		else{
+			config_error_flag = false;
+			isa.configuration_error = 0;
+		}
+//*********************************************************************************
+		update_ISA_t_configuration(&isa, config);
+		//from this point onwards -> all GPIO and TIMER ports are unique and therefore applicable!
+		return isa;
 }
 
-void ISA_DMA_init(DMA *ISA, DMA_Stream_TypeDef *DMA_Stream_RX, GPIO_TypeDef *port, uint8_t width, uint32_t source_address, uint32_t destination_buffer, uint16_t RX_BUFF_SIZE)
-{
+//Addresses are checked prior to GPIO and Timer configuration registers to actually being updated!
 
-	ISA->stream = DMA_Stream_RX;
-	ISA->port = port; //data port
-	ISA->width = width;
-	ISA->destination_buffer = destination_buffer;
-	ISA->source_address = source_address;
-	ISA->RX_BUFF_SIZE = RX_BUFF_SIZE;
+#ifndef DOXYGEN_PRIVATE
+static void _ISA_BUS_init(GPIO_TypeDef *data_port,
+		  	  	  	  	  GPIO_TypeDef *address_port,
+						  GPIO_TypeDef *latch_address_port,
+						  GPIO_TypeDef *control_port,
+						  GPIO_TypeDef *SBHE_port,
+						  GPIO_TypeDef *interrupt_port,
+						  GPIO_TypeDef *dma_port,
+						  //checks need to be done to ensure each GPIO type is separate from each other!
+						  bool master, //will automatically be set to slave via hard-coding! this MUST not be set
+						  TIM_TypeDef *system_clock_timer,
+						  TIM_TypeDef *oscillator_clock_timer,
+						  ISA_Config *config) //-> this is a flawed initialisation and is not FULLY modular!
+{ //group initialisations of WHOLE GPIO ports!
+	for(uint8_t i = 0; i<16; i++)
+	{
+		//for DATA bus!**************************************************
+		data_port->MODER &= ~(config->data_mode)<<(i*2);
+		data_port->MODER |= (config->data_mode)<<(i*2);
+		//choose very high for the majority of this config!
+		data_port->OSPEEDR &= ~(config->data_speed)<<(i*2);
+		data_port->OSPEEDR |= (config->data_speed)<<(i*2);
 
-//Configure the Address as well!
-	ISA->stream->CR = 0; //unconfigures everything the chosen DMA stream
-//this will be a peripheral to memory DMA transaction
-	//source address
-		ISA->stream->PAR = (uint32_t)&(ISA->port->IDR); //points the address where port->IDR is stored
-	//destination address -> this may need to be changed
-		ISA->stream->M0AR = ISA->destination_buffer;
+		data_port->OTYPER &= ~(config->data_type)<<i;
+		data_port->OTYPER |= (config->data_type)<<i;
 
-	//this configures the size of the DMA transaction -> 1 half word only in this case as 1 ISA transcation will occur at a time
-		ISA->stream->NDTR = (uint16_t)RX_BUFF_SIZE;
-		/*
-		 * In order of DMA stream configuration
-		 * Channel select -> Channel 1 (doesn't matter for GPIO as much)
-		 * Peripheral Flow Controller -> Turn off as GPIO packets from ISA will be fixed
-		 * DMA Stream Priority -> Turn this up fairly high -> state control will be interrupt driven stream
-		 * Configure FIFO usage -> for Peripheral to MEM in this case, it will not be necessary as this INPUT stream will purely be state control
-		 * Stream Direction -> Peripheral to Memory
-		 * Circular mode -> enable
-		 * memory data width -> 16 bit
-		 * peripheral data width -> 16 bit
-		 */
-		ISA->stream->CR |= (DMA_SxCR_CHSEL_0)
-				| (~DMA_SxCR_PFCTRL)
-				| (0x02<<DMA_SxCR_PL_Pos)
-				| (0x00<<DMA_SxCR_DIR_Pos)
-				| (DMA_SxCR_CIRC)
-				| (0x01<<DMA_SxCR_PSIZE_Pos)
-				| (0x01<<DMA_SxCR_MSIZE_Pos);
+		data_port->PUPDR &= ~(config->data_pupd)<<(i*2);
+		data_port->PUPDR |= (config->data_pupd)<<(i*2);
 
-		ISA->stream->CR |= DMA_SxCR_EN; //enables the DMA stream for data RX on GPIOD->IDR to Mem
+		//for ADDRESS bus **********************************************
+		address_port->MODER &= ~(config->address_mode)<<(i*2);
+		address_port->MODER |= (config->address_mode)<<(i*2);
+		//choose very high for the majority of this config!
+		address_port->OSPEEDR &= ~(config->address_speed)<<(i*2);
+		address_port->OSPEEDR |= (config->address_speed)<<(i*2);
 
+		address_port->OTYPER &= ~(config->address_type)<<i;
+		address_port->OTYPER |= (config->address_type)<<i;
+
+		address_port->PUPDR &= ~(config->address_pupd)<<(i*2);
+		address_port->PUPDR |= (config->address_pupd)<<(i*2);
+	}
+
+	for(uint8_t i = 6 ; i<10 ; i++) //we only need 16:24 bit addresses up to bit 19 to add extra 0xF....
+	{
+		latch_address_port->MODER &= ~(config->address_latch_mode)<<(i*2);
+		latch_address_port->MODER |= (config->address_latch_mode)<<(i*2);
+		//choose very high for the majority of this config!
+		latch_address_port->OSPEEDR &= ~(config->address_latch_speed)<<(i*2);
+		latch_address_port->OSPEEDR |= (config->address_latch_speed)<<(i*2);
+
+		latch_address_port->OTYPER &= ~(config->address_latch_type)<<i;
+		latch_address_port->OTYPER |= (config->address_latch_type)<<i;
+
+		latch_address_port->PUPDR &= ~(config->address_latch_pupd)<<(i*2);
+		latch_address_port->PUPDR |= (config->address_latch_pupd)<<(i*2);
+	}
+
+//control flow GPIO -> 2:7
+	for(uint8_t i = 2; i < 8; i++)
+	{
+		control_port->MODER &= ~(config->control_mode)<<(i*2);
+		control_port->MODER |= (config->control_mode)<<(i*2);
+		//choose very high for the majority of this config!
+		control_port->OSPEEDR &= ~(config->control_speed)<<(i*2);
+		control_port->OSPEEDR |= (config->control_speed)<<(i*2);
+
+		control_port->OTYPER &= ~(config->control_type)<<i;
+		control_port->OTYPER |= (config->control_type)<<i;
+
+		control_port->PUPDR &= ~(config->control_pupd)<<(i*2);
+		control_port->PUPDR |= (config->control_pupd)<<(i*2);
+
+	}
+
+	GPIOpin_init(SBHE_port, 10, &sbhe_config); //Px10
+	GPIOpin_init(control_port, 0, &BALE_config); //Px0
+
+//TIMER Configuration here ***********************************************************************
+	//timer configuration down here -> do NOT enable the timer (only in MASTER MODE) at the start of a transaction!
+	GPIOpin_init(control_port, 0, &BALE_config); //Px0
+	system_clock_timer->ARR &= ~TIM_ARR_ARR_Msk;
+	system_clock_timer->PSC &= ~TIM_PSC_PSC_Msk;
+
+		//-> prescaler is (45-1)
+		//-> ARR register is 4-1
+	GPIOpin_init(GPIOB, 1, &SYS_CLK_config); //Px1 -> add modularity to GPIO init for sysclk!
+	system_clock_timer->ARR |= 45-1;
+	system_clock_timer->PSC |= 4-1;
+	//this gives a frequency of 8Mhz -> this should ONLY be enabled when ISA Module is in master mode!
+
+	//enable later!
+	//do not configure Oscillator yet!
 }
 
 
+
+#endif
+void update_ISA_t_configuration(ISA_t *isa, ISA_Config *config)
+{
+	if(config == NULL)
+	{
+		//add default configuration here!
+	}
+	isa->config = *config; //the contents of config is stored in config struct in isa struct variable
+	_ISA_BUS_init(isa->Data_port,
+			isa->Address_port,
+			isa->Address_latch_port,
+			isa->Control_port,
+			isa->SBHE_port,
+			isa->Interrupt_port,
+			isa->DMA_Port,
+			isa->Master,
+			isa->System_clock_master,
+			isa->Oscillator_clock_master,
+			config);
+}
+
+
+void EXTI0_IRQHandler(void)
+{
+	//create function to allow for BALE to be detected automatically and assocaited logic according to flowchart!
+
+
+
+}
+void Delay_us(uint32_t usec)
+{
+    // To avoid delaying for less than usec, always round up.;
+		uint32_t i = 0;
+    for(i = 0; i < (usec * 21); i++);
+
+}
+
+void Delay_ms( uint32_t msec )
+{
+    // To avoid delaying for less than usec, always round up.;
+		uint32_t i = 0;
+    for(i = 0; i < (msec * 21000); i++);
+
+}

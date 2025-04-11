@@ -1,6 +1,8 @@
-../Core/Src/spi.c:36:6:SPI_init	24	static
-../Core/Src/spi.c:56:10:SPI_transmit	24	static
-../Core/Src/spi.c:74:13:SPI_send8	16	static
-../Core/Src/spi.c:79:13:SPI_send16	16	static
-../Core/Src/spi.c:94:13:SPI_receive8	16	static
-../Core/Src/spi.c:99:13:SPI_receive16	16	static
+../Core/Src/spi.c:30:7:SPI_init	80	static
+../Core/Src/spi.c:65:13:_SPI_init	16	static
+../Core/Src/spi.c:90:10:SPI_transmit	24	static
+../Core/Src/spi.c:108:13:SPI_send8	16	static
+../Core/Src/spi.c:113:13:SPI_send16	16	static
+../Core/Src/spi.c:128:13:SPI_receive8	16	static
+../Core/Src/spi.c:143:13:SPI_receive16	16	static
+../Core/Src/spi.c:160:6:SPI_updateConfig	24	static

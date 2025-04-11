@@ -34,34 +34,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := GCS_Module
+BUILD_ARTIFACT_NAME := GCS_RF_Module
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-GCS_Module.elf \
+GCS_RF_Module.elf \
 
 MAP_FILES += \
-GCS_Module.map \
+GCS_RF_Module.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-GCS_Module.list \
+GCS_RF_Module.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: GCS_Module.elf secondary-outputs
+main-build: GCS_RF_Module.elf secondary-outputs
 
 # Tool invocations
-GCS_Module.elf GCS_Module.map: $(OBJS) $(USER_OBJS) C:\Users\lucas\Desktop\Spaceport\Ground\ Station\Firmware\GCS_Module\STM32F439NIHX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "GCS_Module.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\lucas\Desktop\Spaceport\Ground Station\Firmware\GCS_Module\STM32F439NIHX_FLASH.ld" --specs=nosys.specs -Wl,-Map="GCS_Module.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+GCS_RF_Module.elf GCS_RF_Module.map: $(OBJS) $(USER_OBJS) C:\Users\lucas\Desktop\Spaceport\Ground\ Station\Firmware\GCS_RF_Module\STM32F439NIHX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "GCS_RF_Module.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\lucas\Desktop\Spaceport\Ground Station\Firmware\GCS_RF_Module\STM32F439NIHX_FLASH.ld" --specs=nosys.specs -Wl,-Map="GCS_RF_Module.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -70,14 +70,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-GCS_Module.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "GCS_Module.list"
+GCS_RF_Module.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "GCS_RF_Module.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) GCS_Module.elf GCS_Module.list GCS_Module.map default.size.stdout
+	-$(RM) GCS_RF_Module.elf GCS_RF_Module.list GCS_RF_Module.map default.size.stdout
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)

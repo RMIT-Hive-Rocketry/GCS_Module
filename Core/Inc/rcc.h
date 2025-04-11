@@ -1,28 +1,27 @@
 /*
  * rcc.h
  *
- *  Created on: Apr 4, 2025
+ *  Created on: Apr 8, 2025
  *      Author: lucas
  */
 
-#ifndef SRC_RCC_H_
-#define SRC_RCC_H_
+#ifndef INC_RCC_H_
+#define INC_RCC_H_
 
-void configureRCC_APB1(void);
-void configureRCC_APB2(void);
-void configureRCC_AHB1(void);
+#define RCC_START_PERIPHERAL(bus, peripheral)		\
+		RCC->bus##ENR |= (RCC_##bus##ENR_##peripheral##EN);    \
+		RCC->bus##RSTR |= (RCC_##bus##RSTR_##peripheral##RST);  \
+		__ASM("NOP");                                           \
+		__ASM("NOP");                                           \
+		RCC->bus##RSTR &= ~(RCC_##bus##RSTR_##peripheral##RST);
 
-//stuff that needs to be enabled!
-/*
- * Interrupts
- * GPIOA|B|C|D|E|F|G|H|I|J|K (all of them lol)
- * SPI1
- * I2C2
- * UART4/USART3
- * TIM1
- * TIM4
- * DMA stream 1
- * DMA stream 2
- */
+//APB2 -> TIMER 4
+#define RCC_RESET_PERIPHERAL(bus, peripheral)               \
+		RCC->##bus##RSTR |= (RCC_##bus##RSTR_##peripheral##RST);  \
+		__ASM("NOP");                                             \
+		__ASM("NOP");                                             \
+		RCC->##bus##RSTR &= ~(RCC_##bus##RSTR_##peripheral##RST);
 
-#endif /* SRC_RCC_H_ */
+//TIMER1 -> APB1
+
+#endif /* INC_RCC_H_ */
