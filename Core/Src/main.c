@@ -43,18 +43,27 @@
 
 /* USER CODE BEGIN PV */
 uint8_t pointerdata[LORA_MSG_LENGTH];
-
+uint8_t USART_BUF[USART_MAX_BUFFER_SIZE_RX];
+uint8_t lora_metadata[LORA_METADATA_LENGTH];
 uint8_t Module_state = 0;
+
 
 	static SX1272_t lora;
 	static SPI_t spi_lora;
 	static GPIOpin_t DIO_0;
 	static GPIOpin_t LORA_CS;
-	static SX1272_Packet LORA_DATA_PACKET_3;
-	static SX1272_Packet LORA_DATA_PACKET_4;
-	static SX1272_Packet GSE_DATA_PACKET_1;
-	static SX1272_Packet GSE_DATA_PACKET_2;
 	static LORA_Error lora_error_state;
+	static USART_t usart;
+	static SX1272_Packet GCS_to_AV;
+	static SX1272_Packet GCS_to_GSE;
+
+
+	static USART_BUFFER LORA_DATA_PACKET_3_USART_BUF;
+	static USART_BUFFER LORA_DATA_PACKET_4_USART_BUF;
+	static USART_BUFFER GSE_DATA_PACKET_1_USART_BUF;
+	static USART_BUFFER GSE_DATA_PACKET_2_USART_BUF;
+
+
 
 
 	static GPIOpin_t LED1;
@@ -93,6 +102,16 @@ uint8_t Module_state = 0;
 			GPIO_MEDIUM_SPEED,
 			GPIO_PUPD_NONE, //recheck timing diagram for ISA
 			GPIO_AF0 //no alternative function
+	};
+
+	USART_CONFIG usart3_config = {
+			DATA_8_BITS,
+			RECEIVER_ENABLED,
+			TRANSMITTER_ENABLED,
+			ONE_STOP_BIT,
+			OVER8,
+			115200,
+			true,
 	};
 	//**************************************************
 
@@ -163,18 +182,21 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-   LED1 = GPIOpin_init(GPIOJ, 0, &LED_config);
-   LED2 = GPIOpin_init(GPIOJ, 1, &LED_config);
+   LED1 = GPIOpin_init(GPIOJ, LED1_POS, &LED_config);
+   LED2 = GPIOpin_init(GPIOJ, LED2_POS, &LED_config);
+   //USART Configuration****************************************************************
+   USART_t_init(USART3, &usart3_config);
+
+
 
 
   //LORA Configuration!*****************************************************************
   LORA_CS = GPIOpin_init(GPIOC, 5, &LoRa_CS_config); //PC5
   DIO_0 = GPIOpin_init(GPIOA, 3, &LoRA_DIO0_config); //PA3
- spi_lora = SPI_init(SPI1, &spi_config); //SPI1 config for LoRa
+  spi_lora = SPI_init(SPI1, &spi_config); //SPI1 config for LoRa
   SX1272_init(&lora, &spi_lora,LORA_CS, SX1272_BW500, SX1272_SF9, SX1272_CR5);
   SX1272_startReceive(&lora); //default state will be to receive -> interr
-
-
+  //************************************************************************************
 
 	SYSCFG->EXTICR[0] &= ~SYSCFG_EXTICR1_EXTI3_PA;
 	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI3_PA;
@@ -211,8 +233,6 @@ int main(void)
 	  	   *2.1) USART communication means it receives from the PI, from which
 	  	   *3) IDLE -> waiting for either state 1 of 2
 	  	   */
-
-
 	  /*go into STATE 1 via DIO0 interrupt flag via EXTI3
 	   *go into STATE 2 via RXNE interrupt flag via USART interrupt event handler
 	   *
@@ -221,11 +241,100 @@ int main(void)
 	  switch(Module_state)
 	  {
 	  case 1:
-		  //LORA state
+
+			bool RX_result = SX1272_readReceive(&lora, pointerdata, LORA_MSG_LENGTH);
+			uint8_t idx = 0; //includes the packet ID as well!
+			SX1272_metaData(&lora, lora_metadata);
+			if(RX_result)
+			{
+			//have USART comms send packets to PI in each switch case!
+				lora_error_state.LoRa_receive_failed = false;
+				switch(pointerdata[0]) //this is packet IDs!
+				{
+					case 3: //NORMAL AV DATA
+						LORA_DATA_PACKET_3_USART_BUF.id = pointerdata[0];
+						memcpy(&LORA_DATA_PACKET_3_USART_BUF.data_tx[idx+= LORA_MSG_PAYLOAD_LENGTH], pointerdata, LORA_MSG_PAYLOAD_LENGTH);
+						memcpy(&LORA_DATA_PACKET_3_USART_BUF.data_tx[idx+= LORA_METADATA_LENGTH], lora_metadata, LORA_METADATA_LENGTH);
+
+						USART_t_send(&usart, pointerdata[0]);
+						USART_t_sendString(&usart, &LORA_DATA_PACKET_3_USART_BUF.data_tx, USART_MAX_BUFFER_SIZE_TX);
+						break;
+
+					case 4: //GPS DATA
+						LORA_DATA_PACKET_4_USART_BUF.id = pointerdata[0];
+						memcpy(&LORA_DATA_PACKET_4_USART_BUF.data_tx[idx+= LORA_MSG_PAYLOAD_LENGTH], pointerdata, LORA_MSG_PAYLOAD_LENGTH);
+						memcpy(&LORA_DATA_PACKET_4_USART_BUF.data_tx[idx+= LORA_METADATA_LENGTH], lora_metadata, LORA_METADATA_LENGTH);
+
+						USART_t_send(&usart, pointerdata[0]);
+						USART_t_sendString(&usart, &LORA_DATA_PACKET_4_USART_BUF.data_tx, USART_MAX_BUFFER_SIZE_TX);
+						break;
+
+					case 6: //GSE DATA 1
+						GSE_DATA_PACKET_1_USART_BUF.id = pointerdata[0];
+						memcpy(&GSE_DATA_PACKET_1_USART_BUF.data_tx, pointerdata[idx +=LORA_MSG_PAYLOAD_LENGTH], LORA_MSG_PAYLOAD_LENGTH);
+						lora_error_state.ID_not_valid = false;
+
+						USART_t_send(&usart, pointerdata[0]);
+						USART_t_sendString(&usart, &GSE_DATA_PACKET_1_USART_BUF.data_tx, LORA_MSG_PAYLOAD_LENGTH);
+						break;
+
+					case 7: //GSE DATA 2
+						GSE_DATA_PACKET_2_USART_BUF.id = pointerdata[0];
+						memcpy(&GSE_DATA_PACKET_2_USART_BUF.data_tx, pointerdata[idx +=LORA_MSG_PAYLOAD_LENGTH], LORA_MSG_PAYLOAD_LENGTH);
+
+						lora_error_state.ID_not_valid = false;
+						//transmit data via USART comms!
+						USART_t_send(&usart, pointerdata[0]);
+						USART_t_sendString(&usart, &GSE_DATA_PACKET_2_USART_BUF.data_tx, LORA_MSG_PAYLOAD_LENGTH);
+						break;
+
+					default:
+						LED1.port->ODR &= ~0x01; //->PJ0/no bit shifting required!
+						Delay_ms(20);
+						LED1.port->ODR |= 0x01; //->PJ0/no bit shifting required!
+						Delay_ms(15);
+						LED1.port->ODR &= ~0x01; //->PJ0/no bit shifting required!
+						Delay_ms(20);
+						LED1.port->ODR |= 0x01; //->PJ0/no bit shifting required!
+					lora_error_state.ID_not_valid = true;
+					break;
+				}
+			}
+			else
+			{
+				lora_error_state.LoRa_receive_failed = true;
+			}
+			LED1.port->ODR &= ~0x01; //->PJ0/no bit shifting required!
+			__NVIC_EnableIRQ(EXTI3_IRQn); //disables current interrupt!
+			Module_state = 0;
+			break;
 
 	  case 2:
 
-		  //USART state
+		  USART_t_receiveString(&usart, USART_BUF);
+
+		 switch(USART_BUF[0]) //indicative of the address of the signal!
+		 {
+		 case 1:
+			 GCS_to_AV = GCS_TO_AV_CMD(LORA_HEADER_GCS_TO_AV_STATE, USART_BUF[1], USART_BUF[3]);
+			 SX1272_transmit(&lora, &GCS_to_AV.transmit_buffer);
+
+			 break;
+		 case 2:
+			 GCS_to_GSE = GCS_TO_GSE_CMD(LORA_HEADER_GCS_TO_GSE_STATE, USART_BUF[1]);
+			 SX1272_transmit(&lora, &GCS_to_GSE.transmit_buffer);
+
+
+			 break;
+
+		 default:
+			 //if first byte falls out of bounds somehow!
+			 //shouldn't end up here!
+		 }
+
+			__NVIC_EnableIRQ(EXTI15_10_IRQn); //disables current interrupt!
+			Module_state = 0;
+			break;
 	  default:
 		  //idle state -> do nothing really (or something with time)!
 
@@ -315,67 +424,15 @@ void EXTI3_IRQHandler(void)
 	EXTI->PR &= ~(0x01<<3); //resets interrupt flag
 	LED1.port->ODR |= 0x01; //->PJ0/no bit shifting required!
 	__NVIC_DisableIRQ(EXTI3_IRQn); //prevents race condition
-
-	bool RX_result = SX1272_readReceive(&lora, pointerdata, LORA_MSG_LENGTH);
-	uint8_t packet_id = pointerdata[0];
-	uint8_t idx = 1;
-	if(RX_result)
-	{
-	//have USART comms send packets to PI in each switch case!
-		lora_error_state.LoRa_receive_failed = false;
-		switch(packet_id) //this is packet IDs!
-		{
-			case 3: //NORMAL AV DATA
-				memcpy(&LORA_DATA_PACKET_3.data, pointerdata[idx +=LORA_MSG_PAYLOAD_LENGTH], LORA_MSG_PAYLOAD_LENGTH);
-				lora_error_state.ID_not_valid = false;
-
-				break;
-			case 4: //GPS DATA
-				memcpy(&LORA_DATA_PACKET_4.data, pointerdata[idx +=LORA_MSG_PAYLOAD_LENGTH], LORA_MSG_PAYLOAD_LENGTH);
-				lora_error_state.ID_not_valid = false;
-
-				break;
-			case 6: //GSE DATA 1
-				memcpy(&GSE_DATA_PACKET_1.data, pointerdata[idx +=LORA_MSG_PAYLOAD_LENGTH], LORA_MSG_PAYLOAD_LENGTH);
-				lora_error_state.ID_not_valid = false;
-
-				break;
-			case 7: //GSE DATA 2
-				memcpy(&GSE_DATA_PACKET_2.data, pointerdata[idx +=LORA_MSG_PAYLOAD_LENGTH], LORA_MSG_PAYLOAD_LENGTH);
-				lora_error_state.ID_not_valid = false;
-
-				break;
-
-			default:
-				LED1.port->ODR &= ~0x01; //->PJ0/no bit shifting required!
-				Delay_ms(20);
-				LED1.port->ODR |= 0x01; //->PJ0/no bit shifting required!
-				Delay_ms(15);
-				LED1.port->ODR &= ~0x01; //->PJ0/no bit shifting required!
-				Delay_ms(20);
-				LED1.port->ODR |= 0x01; //->PJ0/no bit shifting required!
-
-			lora_error_state.ID_not_valid = true;
-			break;
-		}
-	}
-	else
-	{
-		lora_error_state.LoRa_receive_failed = true;
-	}
-	LED1.port->ODR &= ~0x01; //->PJ0/no bit shifting required!
-	__NVIC_EnableIRQ(EXTI3_IRQn); //disables current interrupt!
 }
 
-//EXTI15_10 a higher priority than EXTI3 ->
+//EXTI15_10 a higher priority than EXTI3 -> USART3
 void EXTI15_10_IRQHandler(void)
 {
-	_
 	//this interrupt handler is designed for the PC11 when RXNE is set!
 	EXTI->PR &= ~(0x01<<10); //resets interrupt flag
-	__NVIC_DisableIRQ(EXTI3_IRQn); //prevents race condition
+	__NVIC_DisableIRQ(EXTI15_10_IRQn); //prevents race condition
 	Module_state = 2;
-
 }
 
 

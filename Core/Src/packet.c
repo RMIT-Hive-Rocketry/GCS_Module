@@ -16,9 +16,9 @@
 
 		int idx = 0;
 
-		msg.id = id;
-		msg.data[idx] = state; //state is data[0]
-		memcpy(&msg.data[idx++], ~state, sizeof(state)); //store the inverse of state data[1]
+		msg.transmit_buffer[idx] = id;
+		msg.transmit_buffer[idx++] = state;
+		msg.transmit_buffer[idx++] = ~state;
 
 		return msg;
 	}
@@ -32,10 +32,10 @@
 		SX1272_Packet msg;
 		int idx = 0;
 
-		msg.id = id;
-		msg.data[idx] = state; //state is data[0]
-		memcpy(&msg.data[idx++], ~state, sizeof(state));
-		memcpy(&msg.data[idx++], broadcast_cmd, sizeof(broadcast_cmd));
+		msg.transmit_buffer[idx] = id;
+		msg.transmit_buffer[idx++] = state;
+		msg.transmit_buffer[idx++] = ~state;
+		msg.transmit_buffer[idx++] = broadcast_cmd;
 
 		return msg;
 	}

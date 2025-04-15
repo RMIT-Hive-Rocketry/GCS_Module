@@ -58,12 +58,16 @@
 #define SX1272_REG_PAYLOAD_LENGTH        0x22
 #define SX1272_REG_MAX_PAYLOAD_LENGTH    0x23
 
+#define SX1272_REG_LAST_PACKET_SNR 		 0x19
+#define SX1272_REG_LAST_PACKET_RSSI		 0x1A
+
 // TODO:
 // Extract these out of the device driver
 // in favour of passing as argument
 
 #define LORA_MSG_LENGTH                  0x20 //use this for pointer data variable
 #define LORA_MSG_PAYLOAD_LENGTH          (LORA_MSG_LENGTH - 1)
+#define LORA_METADATA_LENGTH			 0x03
 
 /**
  * @ingroup LoRa
@@ -127,7 +131,10 @@ typedef enum {
 typedef struct {
   uint8_t id;                            //!< Packet header ID
   uint8_t data[LORA_MSG_PAYLOAD_LENGTH]; //!< Packet payload
+  uint8_t transmit_buffer[LORA_MSG_LENGTH] //!<Buffer for Transmitting
 } SX1272_Packet;
+
+
 
 typedef struct{
 	bool ID_not_valid;
@@ -148,6 +155,7 @@ typedef struct SX1272 {
   void (*startReceive)(struct SX1272 *);                    //!< SX1272 LoRa continuous receive method.  @see SX1272_startReceive
   bool (*readReceive)(struct SX1272 *, uint8_t *, uint8_t); //!< SX1272 LoRa receive buffer read method. @see SX1272_readReceiveBuffer
   void (*clearIRQ)(struct SX1272 *, uint8_t);               //!< SX1272 LoRa IRQ flag clear method.      @see SX1272_clearIRQ
+  void (*metaData)(struct SX1272 *, uint8_t *);
 } SX1272_t;
 
 SX1272_t SX1272_init(SX1272_t *, SPI_t *, GPIOpin_t, SX1272_Bandwidth, SX1272_SpreadingFactor, SX1272_CodingRate);
@@ -158,6 +166,7 @@ void SX1272_transmit(SX1272_t *, uint8_t *);
 void SX1272_startReceive(SX1272_t *);
 bool SX1272_readReceive(SX1272_t *, uint8_t *, uint8_t);
 void SX1272_clearIRQ(SX1272_t *, uint8_t);
+void SX1272_metaData(SX1272_t *, uint8_t *);
 
 void _SX1272_setMode(SX1272_t *, SX1272_Mode);
 

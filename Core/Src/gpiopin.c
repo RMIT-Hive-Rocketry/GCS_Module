@@ -30,15 +30,17 @@ GPIOpin_t GPIOpin_init(GPIO_TypeDef *port, GPIO_Pin pin, GPIO_Config *config) {
 
   // Create GPIO struct from parameters and initialise methods
   GPIOpin_t gpio;
+
+
+  // Update config and enable peripheral
+  GPIOpin_updateConfig(&gpio, config);
+
   gpio.port         = port;
   gpio.pin          = pin;
   gpio.set          = GPIOpin_set;
   gpio.reset        = GPIOpin_reset;
   gpio.toggle       = GPIOpin_toggle;
   gpio.updateConfig = GPIOpin_updateConfig;
-
-  // Update config and enable peripheral
-  GPIOpin_updateConfig(&gpio, config);
 
   // Return the new GPIO struct
   return gpio;

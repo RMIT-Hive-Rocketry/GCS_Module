@@ -5,23 +5,6 @@
  *      Author: lucas
  */
 
-
-/*
- * lora.c
- *
- *  Created on: Apr 4, 2025
- *      Author: lucas
- */
-
-
-
-/*
- * lora.c
- *
- *  Created on: Feb 12, 2025
- *      Author: lucas
- */
-
 #include "lora.h"
 #include "stm32f4xx_hal.h"
 
@@ -319,6 +302,30 @@ bool SX1272_readReceive(SX1272_t *lora, uint8_t *buffer, uint8_t buffSize) {
  * ============================================================================================== */
 void SX1272_clearIRQ(SX1272_t *lora, uint8_t flags) {
   SX1272_writeRegister(lora, SX1272_REG_IRQ_FLAGS, flags);
+}
+
+
+
+/* ============================================================================================== */
+/**
+ * @brief  Reads the last packet value of RegPktSnrValue and RegPktRssiValue.
+ * This is a read only function that reads these values from their respective registers
+ *
+ * @param  lora  Pointer to SX1272 struct.
+ *
+ * @return @c NULL
+ **
+ * ============================================================================================== */
+
+void SX1272_metaData(SX1272_t *lora, uint8_t *buffer)
+{
+	uint8_t snr_packet = SX1272_readRegister(&lora, SX1272_REG_LAST_PACKET_SNR);
+	buffer[0] = (~(snr_packet)+1)/4;
+
+	int16_t RSSI = (snr_packet>=0) ? -139 + SX1272_readRegister(&lora, 0x1A)
+										  : -139 + SX1272_readRegister(&lora, 0x1A) +  snr_packet*0.25;
+	buffer[1] = (RSSI & 0xFF00)>>8;
+	buffer[2] = (RSSI & 0x00FF);
 }
 
 /*************************************** INTERFACE METHODS ****************************************/

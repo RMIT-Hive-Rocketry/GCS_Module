@@ -82,11 +82,11 @@ typedef enum {
   }
 #define GPIO_CONFIG_INPUT   \
   (GPIO_Config) {           \
-	GPIO_INPUT_MODE,        \
-    GPIO_TYPE_PUSHPULL,     \
-	GPIO_HIGH_SPEED,        \
-    GPIO_PUPD_PULLUP,       \
-    GPIO_AF0                \
+	.mode =	GPIO_INPUT_MODE,        \
+	.type = GPIO_TYPE_PUSHPULL,     \
+	.speed = GPIO_HIGH_SPEED,        \
+	.pupd = GPIO_PUPD_PULLUP,       \
+	.afr=  GPIO_AF0                \
   }
 //These had to be renamed as to prevent conflicts from HAL defines -> very weird behaviour!
 typedef enum {

@@ -34,6 +34,7 @@ extern "C" {
 #include "DMA.h"
 #include "lora.h"
 #include "rcc.h"
+#include "usart.h"
 
 
 
@@ -46,7 +47,8 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-
+#define LED1_POS 0
+#define LED2_POS 1
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

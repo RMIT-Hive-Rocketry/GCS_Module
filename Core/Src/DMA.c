@@ -22,10 +22,10 @@ DMA DMA_init(DMA_Stream_TypeDef *stream, DMA_Config *config)
 	}
 
 	DMA dma;
+	DMA_updateconfig(&stream,&config);
 	dma.stream = stream; //defining address of where stream is stored at!
 	dma.updateconfig = DMA_updateconfig;
 
-	DMA_updateconfig(&stream,&config);
 
 	return dma;
 }
